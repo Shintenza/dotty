@@ -1,9 +1,10 @@
 package Dotty;
-use strict;
+# use strict;
 use warnings;
 
 use File::Basename;
 use File::Path qw(make_path);
+use File::Globstar qw(globstar);
 use Cwd 'abs_path';
 use Data::Dumper;
 use Exporter 'import';
@@ -84,39 +85,73 @@ sub initialize {
   close($fh);
 }
 
+sub make_symlink {
+  my ($source, $target, $should_force) = @_;
+  print ($target);
+  if (-e $target ) {
+    Logger::info("destination at $target exists - skipping");
+    return;
+  }
+
+  my $target_dir = dirname($target);
+  make_path($target_dir) unless -d $target_dir;
+  
+  if (-e $target || (!-e $target && -l $target)) {
+    Utils::delete_by_path($target);
+  }
+  
+  my $symlink_result = symlink($source, $target);
+  if (!$symlink_result) {
+    Logger::error("failed to create a symlink for $source: $!");
+    return;
+  }
+
+}
+
 sub handle_link_entry {
   my ($entry, $entry_config_ref, $is_forced) = @_;
   my $desired_path = Utils::get_dict_value($entry_config_ref, ['path']);
   my $force_mode = Utils::get_dict_value($entry_config_ref, ['force']);
+  my $glob_mode = Utils::get_dict_value($entry_config_ref, ['glob']);
   my $root = get_dotfiles_root_dir();
   my $entry_path = $root . "/" . $entry;
-
-  if (!-e $entry_path) {
+ 
+  if (!-e $entry_path && !$glob_mode) {
     Logger::info("entry $entry does not exist - skipping");
     return;
   }
+  my $target;
 
   if (!$desired_path) {
-    $desired_path = Utils::get_relative_path($entry);
+    $target = Utils::get_relative_path($entry);
+  } else {
+    $target = glob($desired_path);
   }
 
-  if (-e $desired_path && !($force_mode || $is_forced)) {
-    Logger::info("destination at $desired_path exists - skipping");
-    return;
-  }
+  my $should_force = $is_forced || $force_mode;
 
-  my $target_dir = dirname($desired_path);
-  make_path($target_dir) unless -d $target_dir;
-  
-  if (-e $desired_path) {
-    print("I EXIST $desired_path");
-    Utils::delete_by_path($desired_path);
-  }
-  
-  my $symlink_result = symlink($entry_path, $desired_path);
-  if (!$symlink_result) {
-    Logger::error("failed to create a symlink for $entry");
-    return;
+  if ($glob_mode) {
+    my $excluded_ref = Utils::get_dict_value($entry_config_ref, ['exclude']);
+    my @files = globstar($entry_path);
+    if (!@files) {
+      Logger::info("glob pattern: $entry did not match anything - skipping");
+      return;
+    }
+
+    for my $file (@files) {
+      next if (-d $file);
+      my $rootless_target = $file;
+      $rootless_target =~ s/\Q$root\E\///g;
+      if (!$desired_path) {
+        $target = Utils::get_relative_path($rootless_target);
+      } else {
+        my $file_name = basename($file);
+        $target = $desired_path . '/' . $file_name;
+      }
+      make_symlink($file, $target, $should_force);
+    }
+  } else {
+    make_symlink($entry_path, $target, $should_force);
   }
 }
 
@@ -125,6 +160,7 @@ sub sync {
   my $dotfiles_config = get_dotfiles_config();
 
   my $links_ref = Utils::get_dict_value($dotfiles_config, ["links"]);
+  return unless ($links_ref);
   for my $entry (keys(%$links_ref)) {
     my $entry_config_ref = Utils::get_dict_value($links_ref, [$entry]);
     handle_link_entry($entry, $entry_config_ref, $is_forced);
