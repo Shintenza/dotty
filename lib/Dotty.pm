@@ -140,6 +140,8 @@ sub handle_link_entry {
 
     for my $file (@files) {
       next if (-d $file);
+      next if (Utils::check_if_file_matches_patterns($file, $excluded_ref));
+
       my $rootless_target = $file;
       $rootless_target =~ s/\Q$root\E\///g;
       if (!$desired_path) {

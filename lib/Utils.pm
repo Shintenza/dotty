@@ -1,6 +1,7 @@
 package Utils;
 use YAML::XS qw(LoadFile DumpFile);
 use File::Path qw(remove_tree);
+use File::Basename;
 
 use lib "./";
 use Consts;
@@ -15,6 +16,20 @@ sub throw_error {
 sub get_relative_path {
   my ($path) = @_;
   return "$ENV{HOME}/$path";
+}
+
+sub check_if_file_matches_patterns {
+  my ($file, $patterns_ref) = @_;
+  my $file_name = basename($file);
+  
+  return 0 if !$patterns_ref;
+  for my $pattern (@$patterns_ref) {
+    if ($file_name =~ $pattern) {
+      return 1;
+    }
+  }
+
+  return 0;
 }
 
 sub delete_by_path {
