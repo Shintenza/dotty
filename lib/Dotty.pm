@@ -4,6 +4,7 @@ use warnings;
 
 use File::Basename;
 use File::Path qw(make_path);
+use File::Copy;
 use File::Globstar qw(globstar);
 use Cwd 'abs_path';
 use Data::Dumper;
@@ -88,8 +89,7 @@ sub initialize {
 
 sub make_symlink {
   my ($source, $target, $should_force) = @_;
-  print ($target);
-  if (-e $target ) {
+  if (-e $target && !$should_force) {
     Logger::info("destination at $target exists - skipping");
     return;
   }
@@ -171,19 +171,45 @@ sub sync {
 
 sub add {
   my ($file, $custom_location, $replace) = @_;
-  my $desitnation;
+  my $destination;
+  my $dotfiles_config = get_dotfiles_config();
 
   my $abs_file_path = abs_path($file);
-  my %entry_config = ('path' => $abs_file_path);
+
+  if (!-e $abs_file_path) {
+    Logger::throw_and_abort("file does not exist");
+  } elsif (!-l $abs_file_path) {
+    Logger::throw_and_abort("given file is a symlink");
+  }
+
+  my $config_path = $abs_file_path;
+  $config_path =~ s/\Q$ENV{HOME}\E/~/g;
+
+  my %entry_config = ('path' => $config_path);
   
   if (!$custom_location) {
-    $desitnation = $abs_file_path;
-    $desitnation =~ s/\Q$ENV{HOME}\E\///g;
-    $desitnation = get_dotfiles_root_dir() . "/" . $desitnation;
+    $destination = $abs_file_path;
+    $destination =~ s/\Q$ENV{HOME}\E\///g;
   } else {
+    $destination = $custom_location;
   }
+
+  Utils::add_dict_value($dotfiles_config, ["links", $destination], \%entry_config);
+  Utils::dump_yaml_to_file(get_dotfiles_config_location(), $dotfiles_config);
   
-  print("DEST: $desitnation\n")
+  my $abs_destination = get_dotfiles_root_dir() . "/" . $destination;
+  if (-e $abs_destination) {
+    Logger::info("file is already in the dotty location");
+  } else {
+    make_path(dirname($abs_destination));
+    if (!copy($abs_file_path, $abs_destination)) {
+      Logger::throw_and_abort("failed to copy the file to the dotty location");
+    }
+  }
+
+  if ($replace) {
+    handle_link_entry($destination, \%entry_config, 1);
+  }
 }
 
 1;
