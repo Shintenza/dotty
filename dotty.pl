@@ -27,4 +27,15 @@ if ($main_option eq "init") {
     'force' => \$force_enabled,
   );
   sync($force_enabled);
+} elsif ($main_option eq "add") {
+  my $location;
+  my $replace;
+  my $file = shift @ARGV;
+  Logger::throw_and_abort("missing file/directory") unless $file;
+
+  GetOptions(
+    'path=s' => \$location,
+    'replace' => \$replace,
+  );
+  add($file, $location, $replace);
 }

@@ -1,5 +1,5 @@
 package Dotty;
-# use strict;
+use strict;
 use warnings;
 
 use File::Basename;
@@ -18,6 +18,7 @@ our @EXPORT = qw(
   check_if_initialized
   initialize
   sync
+  add
 );
 
 our $parsed_config_ref = Utils::parse_config();
@@ -105,7 +106,6 @@ sub make_symlink {
     Logger::error("failed to create a symlink for $source: $!");
     return;
   }
-
 }
 
 sub handle_link_entry {
@@ -167,6 +167,23 @@ sub sync {
     my $entry_config_ref = Utils::get_dict_value($links_ref, [$entry]);
     handle_link_entry($entry, $entry_config_ref, $is_forced);
   }
+}
+
+sub add {
+  my ($file, $custom_location, $replace) = @_;
+  my $desitnation;
+
+  my $abs_file_path = abs_path($file);
+  my %entry_config = ('path' => $abs_file_path);
+  
+  if (!$custom_location) {
+    $desitnation = $abs_file_path;
+    $desitnation =~ s/\Q$ENV{HOME}\E\///g;
+    $desitnation = get_dotfiles_root_dir() . "/" . $desitnation;
+  } else {
+  }
+  
+  print("DEST: $desitnation\n")
 }
 
 1;
