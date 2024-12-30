@@ -77,6 +77,23 @@ sub add_dict_value {
   $current->{$last_key} = $value;
 }
 
+sub remove_key_by_path {
+  my ($hash, $path) = @_;
+  return unless ref $hash eq 'HASH' && ref $path eq 'ARRAY';
+
+  my $current = $hash;
+  for my $i (0 .. $#$path - 1) {
+    my $key = $path->[$i];
+    return unless exists $current->{$key} && ref $current->{$key} eq 'HASH';
+    $current = $current->{$key};
+  }
+
+  my $last_key = $path->[-1];
+  if (exists $current->{$last_key}) {
+    delete $current->{$last_key};
+  }
+}
+
 sub dump_yaml_to_file {
   my ($file_path, $data_ref) = @_;
   eval {

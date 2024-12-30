@@ -38,4 +38,13 @@ if ($main_option eq "init") {
     'replace' => \$replace,
   );
   add($file, $location, $replace);
+} elsif ($main_option eq "remove") {
+  my $clean_removal;
+  my $destination = shift @ARGV;
+
+  GetOptions(
+    'clean' => \$clean_removal,
+  );
+
+  remove($destination, $clean_removal);
 }

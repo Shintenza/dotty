@@ -20,6 +20,7 @@ our @EXPORT = qw(
   initialize
   sync
   add
+  remove
 );
 
 our $parsed_config_ref = Utils::parse_config();
@@ -178,7 +179,7 @@ sub add {
 
   if (!-e $abs_file_path) {
     Logger::throw_and_abort("file does not exist");
-  } elsif (!-l $abs_file_path) {
+  } elsif (-l $abs_file_path) {
     Logger::throw_and_abort("given file is a symlink");
   }
 
@@ -212,4 +213,32 @@ sub add {
   }
 }
 
+sub remove {
+  my ($destination, $clean_removal) = @_;
+  my $dotfiles_config_ref = get_dotfiles_config();
+
+  my $entry_config = Utils::get_dict_value($dotfiles_config_ref, ["links", $destination]);
+  
+  if (!$entry_config) {
+    Logger::throw_and_abort("given entry does not exist in the dotty config");
+  }
+
+  Utils::remove_key_by_path($dotfiles_config_ref, ["links", $destination]);
+  Utils::dump_yaml_to_file(get_dotfiles_config_location(), $dotfiles_config_ref);
+
+  if ($clean_removal && !$entry_config->{"glob"}) {
+    my $dotty_root = get_dotfiles_root_dir();
+    Utils::delete_by_path($dotty_root . "/" . $destination);
+    my $custom_path = Utils::get_dict_value($entry_config, ["path"]);
+    my $path_to_delete;
+
+    if ($custom_path) {
+      $path_to_delete = glob($custom_path);
+    } else {
+      $path_to_delete = $ENV{HOME} . "/" . $destination;
+    }
+
+    Utils::delete_by_path($path_to_delete);
+  }
+}
 1;
