@@ -128,4 +128,37 @@ sub parse_config {
   return $parsed_config_ref;
 }
 
+sub print_help {
+  print <<'END_HELP';
+
+Usage: dotty.pl [main_action] [options]
+
+Main actions:
+  - init:                 creates dotty store at ~/.dotfiles and initializes the default config file
+    options:
+      --path              allows to specify custom dotty store location - the choice is saved in ~/.config/dotty.yaml
+
+  - sync:                 links dotfiles stored and configured in the dotty store
+    options:
+      --force             replaces existing files with symlinks
+
+  - add [file_name]:      copies existing file/directory to the dotty store (reflecting its placement in the home dir) and update the store config file
+    options:
+      --path              allows to specify custom store placement; path should be relative e.g .local/bin (not ~/.local/bin)
+      --replace           deletes the original file/directory and replaces it with the symlink to the copy from the dotty store 
+
+  - remove [entry_name]:  removes entry from the dotty store config file
+    options:
+      --clean:            removes the given entry from the store and destroys the symlink
+
+Description:
+  Dotty is a simple dotfiles manager written in Perl and configured in YAML
+
+Example usage:
+  - dotty.pl init
+  - dotty.pl add ~/.config/starship.toml --replace
+
+END_HELP
+}
+
 1;

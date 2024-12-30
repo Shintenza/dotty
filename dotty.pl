@@ -47,4 +47,6 @@ if ($main_option eq "init") {
   );
 
   remove($destination, $clean_removal);
+} else {
+  Utils::print_help();
 }
