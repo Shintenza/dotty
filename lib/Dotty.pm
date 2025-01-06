@@ -74,6 +74,11 @@ sub initialize {
   throw_if_initialized();
   my ($location) = @_;
   my $absolute_location = $location ? abs_path($location) : abs_path(Consts::DEFAULT_LOCATION);
+
+  if (-e Consts::CONFIG_LOCATION) {
+    Utils::remove_key_by_path($parsed_config_ref, ['general', 'location']);
+    Utils::dump_yaml_to_file(Consts::CONFIG_LOCATION, $parsed_config_ref);
+  }
   
   unless (-d $absolute_location) {
     mkdir $absolute_location or Utils::throw_error("Failed to create Dotty directory at $absolute_location");
