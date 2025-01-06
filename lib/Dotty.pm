@@ -43,8 +43,11 @@ sub get_dotfiles_config_location {
 
 sub get_dotfiles_config {
   my $config_location = get_dotfiles_config_location();
-  my $cofnig_ref = Utils::parse_yaml_file($config_location);
-  return $cofnig_ref;
+  my $config_ref = Utils::parse_yaml_file($config_location);
+  if (!$config_ref) {
+    return {};
+  }
+  return $config_ref;
 }
 
 sub check_if_initialized {
@@ -116,17 +119,18 @@ sub handle_link_entry {
   my $glob_mode = Utils::get_dict_value($entry_config_ref, ['glob']);
   my $root = get_dotfiles_root_dir();
   my $entry_path = $root . "/" . $entry;
- 
+
   if (!-e $entry_path && !$glob_mode) {
     Logger::info("entry $entry does not exist - skipping");
     return;
   }
-  my $target;
+  my $target = "";
 
   if (!$desired_path) {
     $target = Utils::get_relative_path($entry);
   } else {
-    $target = glob($desired_path);
+    my ($glob_result) = glob($desired_path);
+    $target = $glob_result;
   }
 
   my $should_force = $is_forced || $force_mode;
@@ -159,6 +163,7 @@ sub handle_link_entry {
 }
 
 sub sync {
+  throw_if_not_initialized();
   my ($is_forced) = @_;
   my $dotfiles_config = get_dotfiles_config();
 
@@ -171,6 +176,7 @@ sub sync {
 }
 
 sub add {
+  throw_if_not_initialized();
   my ($file, $custom_location, $replace) = @_;
   my $destination;
   my $dotfiles_config = get_dotfiles_config();
@@ -214,6 +220,7 @@ sub add {
 }
 
 sub remove {
+  throw_if_not_initialized();
   my ($destination, $clean_removal) = @_;
   my $dotfiles_config_ref = get_dotfiles_config();
 
@@ -228,17 +235,17 @@ sub remove {
 
   if ($clean_removal && !$entry_config->{"glob"}) {
     my $dotty_root = get_dotfiles_root_dir();
-    Utils::delete_by_path($dotty_root . "/" . $destination);
     my $custom_path = Utils::get_dict_value($entry_config, ["path"]);
     my $path_to_delete;
 
     if ($custom_path) {
-      $path_to_delete = glob($custom_path);
+      ($path_to_delete) = glob($custom_path);
     } else {
       $path_to_delete = $ENV{HOME} . "/" . $destination;
     }
 
     Utils::delete_by_path($path_to_delete);
+    Utils::delete_by_path($dotty_root . "/" . $destination);
   }
 }
 1;
